@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Grades</title>
+<style>
+  :root { --bg:#f5f6fa; --card:#fff; --text:#1d2433; --muted:#6b7385; --line:#e5e8ef;
+          --accent:#4f46e5; --good:#16a34a; --mid:#d97706; --bad:#dc2626; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f1219; --card:#181c27; --text:#e8ebf3; --muted:#8c94a8; --line:#262c3b; --accent:#818cf8; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  main { max-width:900px; margin:0 auto; padding:24px 16px 48px; }
+  header { display:flex; flex-wrap:wrap; gap:12px; justify-content:space-between; align-items:center; margin-bottom:20px; }
+  h1 { margin:0; font-size:1.4rem; }
+  .muted { color:var(--muted); font-size:.85rem; }
+  select { padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--text); font:inherit; }
+  .hero { background:var(--accent); color:#fff; border-radius:16px; padding:24px; margin-bottom:20px;
+          display:flex; flex-wrap:wrap; gap:24px; align-items:flex-end; }
+  .hero .big { font-size:3rem; font-weight:700; line-height:1; }
+  .hero .label { opacity:.85; font-size:.85rem; margin-bottom:4px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; margin-bottom:10px; overflow:hidden; }
+  summary { list-style:none; cursor:pointer; padding:14px 16px; display:grid;
+            grid-template-columns:1fr auto; gap:6px 16px; align-items:center; }
+  summary::-webkit-details-marker { display:none; }
+  .name { font-weight:600; }
+  .avg { font-size:1.3rem; font-weight:700; text-align:right; }
+  .bar { grid-column:1 / -1; height:6px; background:var(--line); border-radius:3px; position:relative; }
+  .bar span { position:absolute; left:0; top:0; bottom:0; border-radius:3px; background:var(--accent); }
+  .bar i { position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--muted); }
+  .stats { grid-column:1 / -1; display:flex; gap:16px; flex-wrap:wrap; color:var(--muted); font-size:.8rem; }
+  table { width:100%; border-collapse:collapse; font-size:.9rem; }
+  th, td { text-align:left; padding:8px 16px; border-top:1px solid var(--line); }
+  th { color:var(--muted); font-weight:500; font-size:.75rem; text-transform:uppercase; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .good { color:var(--good); } .mid { color:var(--mid); } .bad { color:var(--bad); }
+  .error { background:var(--card); border:1px solid var(--bad); border-radius:12px; padding:16px; color:var(--bad); }
+</style>
+</head>
+<body>
+<main>
+{% if error %}
+  <h1>My Grades</h1>
+  <div class="error"><strong>Couldn't load Pronote.</strong><br>{{ error }}</div>
+{% else %}
+  <header>
+    <div>
+      <h1>{{ data.student }}</h1>
+      <div class="muted">Updated {{ data.updated }}</div>
+    </div>
+    <form method="get">
+      <select name="period" onchange="this.form.submit()" aria-label="Period">
+        {% for p in data.periods %}
+          <option value="{{ p }}" {{ 'selected' if p == data.period }}>{{ p }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </header>
+
+  <section class="hero">
+    <div>
+      <div class="label">Main average (mean of subjects)</div>
+      <div class="big">{{ data.calculated_average|fmt }}<small style="font-size:1rem;opacity:.8"> / 20</small></div>
+    </div>
+    <div>
+      <div class="label">Pronote overall</div>
+      <div style="font-size:1.6rem;font-weight:600">{{ data.pronote_average|fmt }}</div>
+    </div>
+    <div>
+      <div class="label">Class overall</div>
+      <div style="font-size:1.6rem;font-weight:600">{{ data.class_overall_average|fmt }}</div>
+    </div>
+  </section>
+
+  {% for s in data.subjects %}
+  <details class="card">
+    <summary>
+      <span class="name">{{ s.name }}</span>
+      <span class="avg {{ 'good' if s.average is not none and s.average >= 14 else 'mid' if s.average is not none and s.average >= 10 else 'bad' if s.average is not none }}">{{ s.average|fmt }}</span>
+      {% if s.average is not none %}
+      <div class="bar">
+        <span style="width:{{ s.average / 20 * 100 }}%"></span>
+        {% if s.class_average is not none %}<i style="left:{{ s.class_average / 20 * 100 }}%" title="Class average"></i>{% endif %}
+      </div>
+      {% endif %}
+      <div class="stats">
+        <span>Class {{ s.class_average|fmt }}</span>
+        <span>Min {{ s.min|fmt }}</span>
+        <span>Max {{ s.max|fmt }}</span>
+        <span>{{ s.grades|length }} grade{{ '' if s.grades|length == 1 else 's' }}</span>
+      </div>
+    </summary>
+    {% if s.grades %}
+    <table>
+      <tr><th>Date</th><th class="num">Grade</th><th class="num">Coef</th><th class="num">Class</th><th>Comment</th></tr>
+      {% for g in s.grades %}
+      <tr>
+        <td>{{ g.date }}</td>
+        <td class="num"><strong>{{ g.grade }}</strong>/{{ g.out_of }}</td>
+        <td class="num">{{ g.coefficient }}</td>
+        <td class="num">{{ g.class_average or '–' }}</td>
+        <td class="muted">{{ g.comment }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+  </details>
+  {% endfor %}
+{% endif %}
+</main>
+</body>
+</html>

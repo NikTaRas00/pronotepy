@@ -1,0 +1,3 @@
+pronotepy
+flask
+gunicorn
